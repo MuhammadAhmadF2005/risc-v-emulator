@@ -7,13 +7,11 @@ using namespace std;
 
 struct CPU
 {
-    int reg[32] = {0}; // 32 registers
-    int pc = 0;        // Program Counter
+    int reg[32] = {0}; // 32b architectire
+    int pc = 0;        // init pc to 0
 };
 
-//----------------------
-// Supported Instructions
-//----------------------
+// Instr
 
 enum Opcode
 {
@@ -22,24 +20,16 @@ enum Opcode
     ADDI
 };
 
-//----------------------
-// Instruction Format
-//----------------------
-
 struct Instruction
 {
     Opcode op;
 
-    int rd;  // destination register
-    int rs1; // source register 1
-    int rs2; // source register 2
+    int rd;
+    int rs1;
+    int rs2;
 
-    int imm; // immediate value (used by ADDI)
+    int imm; // imm val
 };
-
-//----------------------
-// Execute One Instruction
-//----------------------
 
 void execute(CPU &cpu, const Instruction &inst)
 {
@@ -66,10 +56,6 @@ void execute(CPU &cpu, const Instruction &inst)
 
     cpu.pc++;
 }
-
-//----------------------
-// Main
-//----------------------
 
 int main()
 {
