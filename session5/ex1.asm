@@ -7,4 +7,9 @@ main:
 	add a0, a0, t0
 	li a7, 1
 	ecall
+	
+
+	# Exit program
+	li a7, 10
+	ecall
 
