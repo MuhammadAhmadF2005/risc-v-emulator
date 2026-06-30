@@ -285,4 +285,4 @@
         return 0;
     }
 
-//instrutions hardcoded for now in main, user based input to be implemented soon//
+//instrutions hardcoded for now in main, user based input to be
