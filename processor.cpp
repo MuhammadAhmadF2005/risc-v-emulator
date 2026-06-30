@@ -133,7 +133,7 @@
         }
     }
 
-    // Fetch / Decode / Execute
+    // Fetch / Decode / Execute cycle 
     Instruction fetch(const CPU &cpu, const vector<Instruction> &program)
     {
         return program[cpu.pc];
@@ -144,7 +144,7 @@
         // identity decoder for now; placeholder for future binary decode
         return inst;
     }
-
+    //all instructions be executed in this block
     void execute(CPU & cpu, const Instruction &inst)
     {
         switch (inst.op)
@@ -232,7 +232,7 @@
         int steps = 0;
         while (cpu.pc < program.size())
         {
-            if (++steps > maxSteps)
+            if (++steps > maxSteps) //set upper limit
             {
                 cerr << "run: reached max steps (possible infinite loop)" << endl;
                 break;
@@ -284,3 +284,5 @@
 
         return 0;
     }
+
+//instrutions hardcoded for now in main, user based input to be implemented soon//
