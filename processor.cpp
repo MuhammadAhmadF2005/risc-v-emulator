@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <iomanip>
 
-        using namespace std;
+using namespace std;
 
     // CPU
 
@@ -14,7 +14,7 @@
         vector<uint8_t> mem;    // byte-addressable memory
     };
 
-    // Instr
+    // Instructions stores as enum for easier understanding
 
     enum Opcode
     {
@@ -40,7 +40,7 @@
         int32_t imm; // immediate (signed)
     };
 
-    // Register names for nicer printing
+    // Register names for nicer printing ...
     const char *regNames[32] = {
         "x0(zero)", "x1(ra)", "x2(sp)", "x3(gp)", "x4(tp)", "x5(t0)", "x6(t1)", "x7(t2)",
         "x8(s0)", "x9(s1)", "x10(a0)", "x11(a1)", "x12(a2)", "x13(a3)", "x14(a4)", "x15(a5)",
@@ -224,7 +224,7 @@
             break;
         }
 
-        cpu.reg[0] = 0; // enforce x0 == 0
+        cpu.reg[0] = 0; // enforce x0 == 0 after every instruction
     }
 
     void run(CPU & cpu, const vector<Instruction> &program, int maxSteps = 1000)
@@ -260,29 +260,40 @@
         vector<Instruction> program =
             {
                 {ADDI, 1, 0, 0, 10}, // x1 = 10
-                {ADDI, 2, 0, 0, 20}, // x2 = 20
-                {SW, 0, 0, 1, 0},    // store x1 at mem[0]
-                {SW, 0, 0, 2, 4},    // store x2 at mem[1]
-                {LW, 3, 0, 0, 0},    // x3 = mem[0]
-                {LW, 4, 0, 0, 4},    // x4 = mem[1]
-                {ADD, 5, 3, 4, 0},   // x5 = x3 + x4
-                {SUB, 6, 5, 1, 0},   // x6 = x5 - x1
-                {ADDI, 7, 0, 0, 3},  // x7 = 3 (loop counter)
-                {BEQ, 0, 7, 0, 3},   // if x7==0 jump forward to end (PC+3)
-                {ADDI, 7, 7, 0, -1}, // x7 = x7 - 1
-                {JAL, 8, 0, 0, -2},  // jump back two instructions to BEQ
-                {BNE, 0, 1, 2, 1},   // if x1!=x2 skip 1 (which it will, 10 != 20)
-                {NOP, 0, 0, 0, 0},   // skipped
-                {NOP, 0, 0, 0, 0}    // end
+                // {ADDI, 2, 0, 0, 20}, // x2 = 20
+                // {SW, 0, 0, 1, 0},    // store x1 at mem[0]
+                // {SW, 0, 0, 2, 4},    // store x2 at mem[1]
+                // {LW, 3, 0, 0, 0},    // x3 = mem[0]
+                // {LW, 4, 0, 0, 4},    // x4 = mem[1]
+                // {ADD, 5, 3, 4, 0},   // x5 = x3 + x4
+                // {SUB, 6, 5, 1, 0},   // x6 = x5 - x1
+                // {ADDI, 7, 0, 0, 3},  // x7 = 3 (loop counter)
+                // {BEQ, 0, 7, 0, 3},   // if x7==0 jump forward to end (PC+3)
+                // {ADDI, 7, 7, 0, -1}, // x7 = x7 - 1
+                // {JAL, 8, 0, 0, -2},  // jump back two instructions to BEQ
+                // {BNE, 0, 1, 2, 1},   // if x1!=x2 skip 1 (which it will, 10 != 20)
+                // {NOP, 0, 0, 0, 0},   // skipped
+                // {NOP, 0, 0, 0, 0}    // end
+
+                //you may uncomment the example outputs to run em for yourself
             };
 
         run(cpu, program, 200);
 
-        cout << "Final registers and memory:\n";
+        cout << "Final registers and memory:";
+        cout << endl;
         printRegisters(cpu);
+        cout << endl;
         printMemory(cpu, 4);
 
         return 0;
     }
 
-//instrutions hardcoded for now in main, user based input to be
+//instrutions hardcoded for now in main, user based input to be taken via terminal...//
+
+/*
+Note: for mem access we use little endian ordering where reading is done from 4 bytes of memory and converted ro 32 bits 
+for eg the 32-bit hexadecimal number 0x12345678 in memory would be stored as 0x78, 0x56, 0x34, 0x12 where 2 hex bits represent 8 binary
+bits ie one byte!
+and writing vice versa..
+*/
