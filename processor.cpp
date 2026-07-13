@@ -224,7 +224,46 @@ using namespace std;
             break;
         }
 
-        cpu.reg[0] = 0; // enforce x0 == 0 after every instruction
+        // I will now try to implement all rv32I complete instructions...
+
+        //LUI simply loads a 20bit immediate into the top 20 bits of rd while
+        // remaining lower 12 bits are zero
+        case LUI:
+        cpu.reg[inst.rd] = (uint32_t)inst.imm << 12;
+        cpu.pc++;
+        break;
+
+        //AUIPC adds the 20bit immediate (shifted) to pc
+        case AUIPC:
+        cpu.reg[inst.rd] = cpu.pc + (uint32_t)inst.imm << 12;
+        cpu.pc++;
+        break;
+
+        case SLTI:
+        if (cpu.reg[inst.rs1] < (uint32_t)inst.imm)
+        {
+            cpu.reg[inst.rd] = 1;
+        }
+        else
+        {
+            cpu.reg[inst.rd] = 0;
+        }
+        cpu.pc++;
+        break;
+
+        case SLTIU:
+        if (cpu.reg[inst.rs1] < (uint32_t)inst.imm)
+        {
+            cpu.reg[inst.rd] = 1;
+        }
+        else
+        {
+            cpu.reg[inst.rd] = 0;
+        }
+        cpu.pc++;
+        break;
+        
+        
     }
 
     void run(CPU & cpu, const vector<Instruction> &program, int maxSteps = 1000)
