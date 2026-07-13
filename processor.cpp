@@ -262,7 +262,75 @@ using namespace std;
         }
         cpu.pc++;
         break;
+
+        case XORI:
+        cpu.reg[inst.rd] = cpu.reg[inst.rs1] ^ (uint32_t)inst.imm;
+        cpu.pc++;
+        break;
+
+        case ORI:
+        cpu.reg[inst.rd] = cpu.reg[inst.rs1] | (uint32_t)inst.imm;
+        cpu.pc++;
+        break;
+
+        case ANDI:
+        cpu.reg[inst.rd] = cpu.reg[inst.rs1] & (uint32_t)inst.imm;
+        cpu.pc++;
+        break;
+
+        case SLLI:
+        cpu.reg[inst.rd] = cpu.reg[inst.rs1] << inst.imm;
+        cpu.pc++;
+        break;
+
+        case SRLI:
+        cpu.reg[inst.rd] = cpu.reg[inst.rs1] >> inst.imm;
+        cpu.pc++;
+        break;
+
+        case SRAI:
+        cpu.reg[inst.rd] = (int32_t)cpu.reg[inst.rs1] >> inst.imm;
+        cpu.pc++;
+        break;
         
+        case SLT:
+        if (cpu.reg[inst.rs1] < cpu.reg[inst.rs2])
+        {
+            cpu.reg[inst.rd] = 1;
+        }
+        else
+        {
+            cpu.reg[inst.rd] = 0;
+        }
+        cpu.pc++;
+        break;
+
+        case SLTU:
+        if (cpu.reg[inst.rs1] < cpu.reg[inst.rs2])
+        {
+            cpu.reg[inst.rd] = 1;
+        }
+        else
+        {
+            cpu.reg[inst.rd] = 0;
+        }
+        cpu.pc++;
+        break;
+
+        case SLL:
+        cpu.reg[inst.rd] = cpu.reg[inst.rs1] << inst.rs2;
+        cpu.pc++;
+        break;
+
+        case SLT:
+        cpu.reg[inst.rd] = cpu.reg[inst.rs1] < cpu.reg[inst.rs2]; //bool true =1, 0=false
+        cpu.pc++;
+        break;
+
+        case XOR:
+        cpu.reg[inst.rd] = cpu.reg[inst.rs1] ^ cpu.reg[inst.rs2];
+        cpu.pc++;
+        break;
         
     }
 
@@ -335,4 +403,13 @@ Note: for mem access we use little endian ordering where reading is done from 4 
 for eg the 32-bit hexadecimal number 0x12345678 in memory would be stored as 0x78, 0x56, 0x34, 0x12 where 2 hex bits represent 8 binary
 bits ie one byte!
 and writing vice versa..
+*/
+
+/*
+note to reader: we use SRLI and SRAI instructions for right shifting as 
+in our RISCV-32-simulator but there is a difference between them: 
+SRLI is logical right shift and SRAI is arithmetic right shift what this means for us is
+in SRLI the most significant bit is filled with 0 while shifting but in SRAI the most significant
+bit is filled with the sign bit (ie the most significant bit of the number being shifted)
+this is done in order to preserve the sign of the number being shifted. 
 */
