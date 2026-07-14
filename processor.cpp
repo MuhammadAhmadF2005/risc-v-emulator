@@ -2,7 +2,6 @@
 #include <vector>
 #include <cstdint>
 #include <iomanip>
-#include <string>
 
 using namespace std;
 
@@ -172,7 +171,7 @@ void write32(CPU &cpu, int address, uint32_t value)
 // Printing utilities
 void printInstruction(const CPU &cpu, const Instruction &inst)
 {
-    cout << "  Executing:  " << opName(inst.op);
+    cout << "PC=" << cpu.pc << "  " << opName(inst.op);
     switch (inst.op)
     {
     // R-type: op rd, rs1, rs2
@@ -232,42 +231,23 @@ void printInstruction(const CPU &cpu, const Instruction &inst)
     cout << endl;
 }
 
-void printRegisters(const CPU &cpu, bool onlyNonZero = true)
+void printRegisters(const CPU &cpu)
 {
-    cout << "  Registers" << (onlyNonZero ? " (non-zero)" : "") << ":" << endl;
-    bool anyPrinted = false;
+    cout << "Registers:\n";
     for (int i = 0; i < 32; ++i)
-    {
-        if (onlyNonZero && cpu.reg[i] == 0)
-            continue;
-        cout << "    " << left << setw(10) << regNames[i]
-             << right << " = 0x" << hex << setw(8) << setfill('0') << cpu.reg[i]
-             << dec << setfill(' ') << "  (" << (int32_t)cpu.reg[i] << ")" << endl;
-        anyPrinted = true;
-    }
-    if (!anyPrinted)
-        cout << "    (all zero)" << endl;
+        cout << "  " << regNames[i] << " = " << cpu.reg[i] << "\n";
 }
 
 void printMemory(const CPU &cpu, int words = 8)
 {
-    cout << "  Memory (first " << words << " words):" << endl;
-    bool anyPrinted = false;
+    cout << "Memory (first " << words << " words):\n";
     for (int i = 0; i < words; ++i)
     {
         int addr = i * 4;
         if (addr + 3 >= (int)cpu.mem.size())
             break;
-        uint32_t val = read32(cpu, addr);
-        if (val != 0)
-        {
-            cout << "    mem[" << addr << "] = " << val
-                 << "  (0x" << hex << setw(8) << setfill('0') << val << dec << setfill(' ') << ")" << endl;
-            anyPrinted = true;
-        }
+        cout << "  mem[" << addr << "] = " << read32(cpu, addr) << "\n";
     }
-    if (!anyPrinted)
-        cout << "    (all zero)" << endl;
 }
 
 // Fetch / Decode / Execute cycle
@@ -483,8 +463,7 @@ void run(CPU &cpu, const vector<Instruction> &program, int maxSteps = 1000, bool
 
         if (verbose)
         {
-            cout << "  +-- Step " << steps << " ----------------------------" << endl;
-            cout << "  |  PC = " << cpu.pc << endl;
+            cout << "---\n";
             printInstruction(cpu, dec);
         }
 
@@ -494,338 +473,317 @@ void run(CPU &cpu, const vector<Instruction> &program, int maxSteps = 1000, bool
         {
             printRegisters(cpu);
             printMemory(cpu, 4);
-            cout << "  +------------------------------------------" << endl
-                 << endl;
+            cout << endl;
         }
     }
-}
-
-// ============ TEST FRAMEWORK ============
-
-struct TestResult
-{
-    string name;
-    bool passed;
-};
-
-// Run a test: load program, execute, check expected register values
-TestResult runTest(const string &name, const vector<Instruction> &program,
-                   const vector<pair<int, uint32_t>> &expectedRegs,
-                   int memSize = 256)
-{
-    CPU cpu;
-    cpu.mem.resize(memSize);
-
-    // Run silently (verbose = false)
-    run(cpu, program, 100, false);
-
-    // Check expected values
-    bool passed = true;
-    for (const auto &expected : expectedRegs)
-    {
-        if (cpu.reg[expected.first] != expected.second)
-        {
-            cout << "  FAIL: " << name << endl;
-            cout << "    " << regNames[expected.first] << " = " << cpu.reg[expected.first]
-                 << " (expected " << expected.second << ")" << endl;
-            passed = false;
-        }
-    }
-
-    if (passed)
-        cout << "  PASS: " << name << endl;
-
-    return {name, passed};
-}
-
-// Overload for tests that also check memory
-TestResult runTestMem(const string &name, const vector<Instruction> &program,
-                      const vector<pair<int, uint32_t>> &expectedRegs,
-                      const vector<pair<int, uint32_t>> &expectedMem,
-                      int memSize = 256)
-{
-    CPU cpu;
-    cpu.mem.resize(memSize);
-
-    run(cpu, program, 100, false);
-
-    bool passed = true;
-    for (const auto &expected : expectedRegs)
-    {
-        if (cpu.reg[expected.first] != expected.second)
-        {
-            cout << "  FAIL: " << name << endl;
-            cout << "    " << regNames[expected.first] << " = " << cpu.reg[expected.first]
-                 << " (expected " << expected.second << ")" << endl;
-            passed = false;
-        }
-    }
-    for (const auto &expected : expectedMem)
-    {
-        uint32_t actual = read32(cpu, expected.first);
-        if (actual != expected.second)
-        {
-            cout << "  FAIL: " << name << endl;
-            cout << "    mem[" << expected.first << "] = " << actual
-                 << " (expected " << expected.second << ")" << endl;
-            passed = false;
-        }
-    }
-
-    if (passed)
-        cout << "  PASS: " << name << endl;
-
-    return {name, passed};
 }
 
 int main()
 {
-    cout << "========================================" << endl;
-    cout << "   RISC-V RV32I Emulator Test Suite    " << endl;
-    cout << "   28 Instructions Implemented         " << endl;
-    cout << "========================================" << endl
-         << endl;
+    cout << "=== RISC-V RV32I Emulator - Test Cases ===" << endl;
+    cout << "28 instructions implemented" << endl << endl;
 
-    vector<TestResult> results;
+    int passed = 0;
+    int failed = 0;
+
+    // helper to print a test result
+    // we just inline the check each time so its clear whats happening
+
+    CPU cpu;
+    cpu.mem.resize(256); // 256 bytes = 64 words
 
     // ---- R-type ALU tests ----
-    cout << "--- R-type ALU Instructions ---" << endl;
+    cout << "-- R-type ALU --" << endl;
 
-    results.push_back(runTest("ADD: 10 + 20 = 30",
-                              {{ADDI, 1, 0, 0, 10}, {ADDI, 2, 0, 0, 20}, {ADD, 3, 1, 2, 0}},
-                              {{3, 30}}));
+    // ADD: x1 = 10, x2 = 20, x3 = x1 + x2 should be 30
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,10},{ADDI,2,0,0,20},{ADD,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 30) { cout << "PASS ADD" << endl; passed++; }
+    else { cout << "FAIL ADD  got " << cpu.reg[3] << " expected 30" << endl; failed++; }
 
-    results.push_back(runTest("SUB: 20 - 10 = 10",
-                              {{ADDI, 1, 0, 0, 20}, {ADDI, 2, 0, 0, 10}, {SUB, 3, 1, 2, 0}},
-                              {{3, 10}}));
+    // SUB: x1=20, x2=10, x3 = x1 - x2 = 10
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,20},{ADDI,2,0,0,10},{SUB,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 10) { cout << "PASS SUB" << endl; passed++; }
+    else { cout << "FAIL SUB  got " << cpu.reg[3] << " expected 10" << endl; failed++; }
 
-    results.push_back(runTest("SLL: 1 << 4 = 16",
-                              {{ADDI, 1, 0, 0, 1}, {ADDI, 2, 0, 0, 4}, {SLL, 3, 1, 2, 0}},
-                              {{3, 16}}));
+    // SLL: x1=1, x2=4, x3 = 1 << 4 = 16
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,1},{ADDI,2,0,0,4},{SLL,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 16) { cout << "PASS SLL" << endl; passed++; }
+    else { cout << "FAIL SLL  got " << cpu.reg[3] << " expected 16" << endl; failed++; }
 
-    results.push_back(runTest("SLT: signed -1 < 1 = true",
-                              {{ADDI, 1, 0, 0, -1}, {ADDI, 2, 0, 0, 1}, {SLT, 3, 1, 2, 0}},
-                              {{3, 1}}));
+    // SLT signed: -1 < 1 = true (result = 1)
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-1},{ADDI,2,0,0,1},{SLT,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 1) { cout << "PASS SLT (signed -1 < 1 = true)" << endl; passed++; }
+    else { cout << "FAIL SLT  got " << cpu.reg[3] << " expected 1" << endl; failed++; }
 
-    results.push_back(runTest("SLT: signed 5 < 3 = false",
-                              {{ADDI, 1, 0, 0, 5}, {ADDI, 2, 0, 0, 3}, {SLT, 3, 1, 2, 0}},
-                              {{3, 0}}));
+    // SLT signed: 5 < 3 = false (result = 0)
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,5},{ADDI,2,0,0,3},{SLT,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 0) { cout << "PASS SLT (signed 5 < 3 = false)" << endl; passed++; }
+    else { cout << "FAIL SLT  got " << cpu.reg[3] << " expected 0" << endl; failed++; }
 
-    results.push_back(runTest("SLTU: unsigned 1 < 0xFFFFFFFF = true",
-                              {{ADDI, 1, 0, 0, 1}, {ADDI, 2, 0, 0, -1}, {SLTU, 3, 1, 2, 0}},
-                              {{3, 1}}));
+    // SLTU unsigned: 1 < 0xFFFFFFFF = true
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,1},{ADDI,2,0,0,-1},{SLTU,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 1) { cout << "PASS SLTU" << endl; passed++; }
+    else { cout << "FAIL SLTU  got " << cpu.reg[3] << " expected 1" << endl; failed++; }
 
-    results.push_back(runTest("XOR: 0xFF ^ 0x0F = 0xF0",
-                              {{ADDI, 1, 0, 0, 0xFF}, {ADDI, 2, 0, 0, 0x0F}, {XOR, 3, 1, 2, 0}},
-                              {{3, 0xF0}}));
+    // XOR: 0xFF ^ 0x0F = 0xF0
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,0xFF},{ADDI,2,0,0,0x0F},{XOR,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 0xF0) { cout << "PASS XOR" << endl; passed++; }
+    else { cout << "FAIL XOR  got " << cpu.reg[3] << " expected 240" << endl; failed++; }
 
-    results.push_back(runTest("SRL: 0x80 >> 4 = 0x08 (logical)",
-                              {{ADDI, 1, 0, 0, 0x80}, {ADDI, 2, 0, 0, 4}, {SRL, 3, 1, 2, 0}},
-                              {{3, 0x08}}));
+    // SRL logical: 0x80 >> 4 = 0x08
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,0x80},{ADDI,2,0,0,4},{SRL,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 0x08) { cout << "PASS SRL" << endl; passed++; }
+    else { cout << "FAIL SRL  got " << cpu.reg[3] << " expected 8" << endl; failed++; }
 
-    results.push_back(runTest("SRA: -128 >> 2 = -32 (arithmetic, preserves sign)",
-                              {{ADDI, 1, 0, 0, -128}, {ADDI, 2, 0, 0, 2}, {SRA, 3, 1, 2, 0}},
-                              {{3, (uint32_t)-32}}));
+    // SRA arithmetic: -128 >> 2 = -32 (sign preserved)
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-128},{ADDI,2,0,0,2},{SRA,3,1,2,0}}, 100, false);
+    if ((int32_t)cpu.reg[3] == -32) { cout << "PASS SRA" << endl; passed++; }
+    else { cout << "FAIL SRA  got " << (int32_t)cpu.reg[3] << " expected -32" << endl; failed++; }
 
-    results.push_back(runTest("OR: 0xF0 | 0x0F = 0xFF",
-                              {{ADDI, 1, 0, 0, 0xF0}, {ADDI, 2, 0, 0, 0x0F}, {OR, 3, 1, 2, 0}},
-                              {{3, 0xFF}}));
+    // OR: 0xF0 | 0x0F = 0xFF
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,0xF0},{ADDI,2,0,0,0x0F},{OR,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 0xFF) { cout << "PASS OR" << endl; passed++; }
+    else { cout << "FAIL OR  got " << cpu.reg[3] << " expected 255" << endl; failed++; }
 
-    results.push_back(runTest("AND: 0xFF & 0x0F = 0x0F",
-                              {{ADDI, 1, 0, 0, 0xFF}, {ADDI, 2, 0, 0, 0x0F}, {AND, 3, 1, 2, 0}},
-                              {{3, 0x0F}}));
+    // AND: 0xFF & 0x0F = 0x0F
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,0xFF},{ADDI,2,0,0,0x0F},{AND,3,1,2,0}}, 100, false);
+    if (cpu.reg[3] == 0x0F) { cout << "PASS AND" << endl; passed++; }
+    else { cout << "FAIL AND  got " << cpu.reg[3] << " expected 15" << endl; failed++; }
 
     cout << endl;
 
     // ---- I-type ALU tests ----
-    cout << "--- I-type ALU Instructions ---" << endl;
+    cout << "-- I-type ALU --" << endl;
 
-    results.push_back(runTest("ADDI: 0 + 42 = 42",
-                              {{ADDI, 1, 0, 0, 42}},
-                              {{1, 42}}));
+    // ADDI: x1 = 0 + 42 = 42
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,42}}, 100, false);
+    if (cpu.reg[1] == 42) { cout << "PASS ADDI" << endl; passed++; }
+    else { cout << "FAIL ADDI  got " << cpu.reg[1] << " expected 42" << endl; failed++; }
 
-    results.push_back(runTest("ADDI: 10 + (-3) = 7",
-                              {{ADDI, 1, 0, 0, 10}, {ADDI, 2, 1, 0, -3}},
-                              {{2, 7}}));
+    // ADDI negative: x1 = 10, x2 = x1 + (-3) = 7
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,10},{ADDI,2,1,0,-3}}, 100, false);
+    if (cpu.reg[2] == 7) { cout << "PASS ADDI (negative imm)" << endl; passed++; }
+    else { cout << "FAIL ADDI  got " << cpu.reg[2] << " expected 7" << endl; failed++; }
 
-    results.push_back(runTest("SLTI: signed -5 < 1 = true",
-                              {{ADDI, 1, 0, 0, -5}, {SLTI, 2, 1, 0, 1}},
-                              {{2, 1}}));
+    // SLTI signed: -5 < 1 = true
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-5},{SLTI,2,1,0,1}}, 100, false);
+    if (cpu.reg[2] == 1) { cout << "PASS SLTI (signed -5 < 1 = true)" << endl; passed++; }
+    else { cout << "FAIL SLTI  got " << cpu.reg[2] << " expected 1" << endl; failed++; }
 
-    results.push_back(runTest("SLTI: signed 5 < 3 = false",
-                              {{ADDI, 1, 0, 0, 5}, {SLTI, 2, 1, 0, 3}},
-                              {{2, 0}}));
+    // SLTI signed: 5 < 3 = false
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,5},{SLTI,2,1,0,3}}, 100, false);
+    if (cpu.reg[2] == 0) { cout << "PASS SLTI (signed 5 < 3 = false)" << endl; passed++; }
+    else { cout << "FAIL SLTI  got " << cpu.reg[2] << " expected 0" << endl; failed++; }
 
-    results.push_back(runTest("SLTIU: unsigned 1 < 2 = true",
-                              {{ADDI, 1, 0, 0, 1}, {SLTIU, 2, 1, 0, 2}},
-                              {{2, 1}}));
+    // SLTIU unsigned: 1 < 2 = true
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,1},{SLTIU,2,1,0,2}}, 100, false);
+    if (cpu.reg[2] == 1) { cout << "PASS SLTIU" << endl; passed++; }
+    else { cout << "FAIL SLTIU  got " << cpu.reg[2] << " expected 1" << endl; failed++; }
 
-    results.push_back(runTest("XORI: 0xFF ^ 0x0F = 0xF0",
-                              {{ADDI, 1, 0, 0, 0xFF}, {XORI, 2, 1, 0, 0x0F}},
-                              {{2, 0xF0}}));
+    // XORI: 0xFF ^ 0x0F = 0xF0
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,0xFF},{XORI,2,1,0,0x0F}}, 100, false);
+    if (cpu.reg[2] == 0xF0) { cout << "PASS XORI" << endl; passed++; }
+    else { cout << "FAIL XORI  got " << cpu.reg[2] << " expected 240" << endl; failed++; }
 
-    results.push_back(runTest("ORI: 0xF0 | 0x0F = 0xFF",
-                              {{ADDI, 1, 0, 0, 0xF0}, {ORI, 2, 1, 0, 0x0F}},
-                              {{2, 0xFF}}));
+    // ORI: 0xF0 | 0x0F = 0xFF
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,0xF0},{ORI,2,1,0,0x0F}}, 100, false);
+    if (cpu.reg[2] == 0xFF) { cout << "PASS ORI" << endl; passed++; }
+    else { cout << "FAIL ORI  got " << cpu.reg[2] << " expected 255" << endl; failed++; }
 
-    results.push_back(runTest("ANDI: 0xFF & 0x0F = 0x0F",
-                              {{ADDI, 1, 0, 0, 0xFF}, {ANDI, 2, 1, 0, 0x0F}},
-                              {{2, 0x0F}}));
+    // ANDI: 0xFF & 0x0F = 0x0F
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,0xFF},{ANDI,2,1,0,0x0F}}, 100, false);
+    if (cpu.reg[2] == 0x0F) { cout << "PASS ANDI" << endl; passed++; }
+    else { cout << "FAIL ANDI  got " << cpu.reg[2] << " expected 15" << endl; failed++; }
 
-    results.push_back(runTest("SLLI: 1 << 8 = 256",
-                              {{ADDI, 1, 0, 0, 1}, {SLLI, 2, 1, 0, 8}},
-                              {{2, 256}}));
+    // SLLI: 1 << 8 = 256
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,1},{SLLI,2,1,0,8}}, 100, false);
+    if (cpu.reg[2] == 256) { cout << "PASS SLLI" << endl; passed++; }
+    else { cout << "FAIL SLLI  got " << cpu.reg[2] << " expected 256" << endl; failed++; }
 
-    results.push_back(runTest("SRLI: 256 >> 4 = 16 (logical)",
-                              {{ADDI, 1, 0, 0, 256}, {SRLI, 2, 1, 0, 4}},
-                              {{2, 16}}));
+    // SRLI logical: 256 >> 4 = 16
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,256},{SRLI,2,1,0,4}}, 100, false);
+    if (cpu.reg[2] == 16) { cout << "PASS SRLI" << endl; passed++; }
+    else { cout << "FAIL SRLI  got " << cpu.reg[2] << " expected 16" << endl; failed++; }
 
-    results.push_back(runTest("SRAI: -64 >> 2 = -16 (arithmetic)",
-                              {{ADDI, 1, 0, 0, -64}, {SRAI, 2, 1, 0, 2}},
-                              {{2, (uint32_t)-16}}));
+    // SRAI arithmetic: -64 >> 2 = -16
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-64},{SRAI,2,1,0,2}}, 100, false);
+    if ((int32_t)cpu.reg[2] == -16) { cout << "PASS SRAI" << endl; passed++; }
+    else { cout << "FAIL SRAI  got " << (int32_t)cpu.reg[2] << " expected -16" << endl; failed++; }
 
     cout << endl;
 
     // ---- U-type tests ----
-    cout << "--- U-type Instructions ---" << endl;
+    cout << "-- U-type --" << endl;
 
-    results.push_back(runTest("LUI: load upper imm 1 -> 0x1000",
-                              {{LUI, 1, 0, 0, 1}},
-                              {{1, 0x1000}}));
+    // LUI: imm=1 loads 1 into top 20 bits -> 0x1000
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{LUI,1,0,0,1}}, 100, false);
+    if (cpu.reg[1] == 0x1000) { cout << "PASS LUI" << endl; passed++; }
+    else { cout << "FAIL LUI  got " << cpu.reg[1] << " expected 4096" << endl; failed++; }
 
-    results.push_back(runTest("LUI: load upper imm 0xABCDE -> 0xABCDE000",
-                              {{LUI, 1, 0, 0, (int32_t)0xABCDE}},
-                              {{1, (uint32_t)0xABCDE << 12}}));
-
-    results.push_back(runTest("AUIPC: pc + (imm << 12), pc=0, imm=2 -> 0x2000",
-                              {{AUIPC, 1, 0, 0, 2}},
-                              {{1, 0x2000}}));
+    // AUIPC: pc=0, imm=2, result = 0 + (2 << 12) = 0x2000
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{AUIPC,1,0,0,2}}, 100, false);
+    if (cpu.reg[1] == 0x2000) { cout << "PASS AUIPC" << endl; passed++; }
+    else { cout << "FAIL AUIPC  got " << cpu.reg[1] << " expected 8192" << endl; failed++; }
 
     cout << endl;
 
     // ---- Load/Store tests ----
-    cout << "--- Load/Store Instructions ---" << endl;
+    cout << "-- Load / Store --" << endl;
 
-    results.push_back(runTestMem("SW+LW: store 42 at addr 0, load back",
-                                 {{ADDI, 1, 0, 0, 42}, {SW, 0, 0, 1, 0}, {LW, 2, 0, 0, 0}},
-                                 {{2, 42}},
-                                 {{0, 42}}));
+    // SW then LW: store 42 at addr 0, load it back into x2
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,42},{SW,0,0,1,0},{LW,2,0,0,0}}, 100, false);
+    if (cpu.reg[2] == 42) { cout << "PASS SW + LW" << endl; passed++; }
+    else { cout << "FAIL SW+LW  got " << cpu.reg[2] << " expected 42" << endl; failed++; }
 
-    results.push_back(runTestMem("SW+LW: store 99 at addr 8 via offset",
-                                 {{ADDI, 1, 0, 0, 99}, {ADDI, 3, 0, 0, 8}, {SW, 0, 3, 1, 0}, {LW, 2, 3, 0, 0}},
-                                 {{2, 99}},
-                                 {{8, 99}}));
+    // SW then LW with offset: store 99 at addr 8, load back
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,99},{ADDI,3,0,0,8},{SW,0,3,1,0},{LW,2,3,0,0}}, 100, false);
+    if (cpu.reg[2] == 99) { cout << "PASS SW + LW (offset)" << endl; passed++; }
+    else { cout << "FAIL SW+LW  got " << cpu.reg[2] << " expected 99" << endl; failed++; }
 
     cout << endl;
 
     // ---- Branch tests ----
-    cout << "--- Branch Instructions ---" << endl;
+    cout << "-- Branches --" << endl;
 
-    results.push_back(runTest("BEQ: equal -> branch taken (skip ADDI 99)",
-                              {{ADDI, 1, 0, 0, 5}, {ADDI, 2, 0, 0, 5}, {BEQ, 0, 1, 2, 2}, {ADDI, 3, 0, 0, 99}, {ADDI, 4, 0, 0, 77}},
-                              {{3, 0}, {4, 77}}));
+    // BEQ taken: x1==x2 so branch skips the ADDI 99, x3 should stay 0
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,5},{ADDI,2,0,0,5},{BEQ,0,1,2,2},{ADDI,3,0,0,99},{ADDI,4,0,0,77}}, 100, false);
+    if (cpu.reg[3] == 0 && cpu.reg[4] == 77) { cout << "PASS BEQ (taken)" << endl; passed++; }
+    else { cout << "FAIL BEQ taken  x3=" << cpu.reg[3] << " x4=" << cpu.reg[4] << endl; failed++; }
 
-    results.push_back(runTest("BEQ: unequal -> branch not taken",
-                              {{ADDI, 1, 0, 0, 5}, {ADDI, 2, 0, 0, 10}, {BEQ, 0, 1, 2, 2}, {ADDI, 3, 0, 0, 99}},
-                              {{3, 99}}));
+    // BEQ not taken: x1 != x2 so no branch, x3 gets 99
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,5},{ADDI,2,0,0,10},{BEQ,0,1,2,2},{ADDI,3,0,0,99}}, 100, false);
+    if (cpu.reg[3] == 99) { cout << "PASS BEQ (not taken)" << endl; passed++; }
+    else { cout << "FAIL BEQ not taken  got " << cpu.reg[3] << " expected 99" << endl; failed++; }
 
-    results.push_back(runTest("BNE: unequal -> branch taken",
-                              {{ADDI, 1, 0, 0, 5}, {ADDI, 2, 0, 0, 10}, {BNE, 0, 1, 2, 2}, {ADDI, 3, 0, 0, 99}, {ADDI, 4, 0, 0, 77}},
-                              {{3, 0}, {4, 77}}));
+    // BNE taken: x1 != x2 so branch, x3 stays 0
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,5},{ADDI,2,0,0,10},{BNE,0,1,2,2},{ADDI,3,0,0,99},{ADDI,4,0,0,77}}, 100, false);
+    if (cpu.reg[3] == 0 && cpu.reg[4] == 77) { cout << "PASS BNE (taken)" << endl; passed++; }
+    else { cout << "FAIL BNE taken  x3=" << cpu.reg[3] << " x4=" << cpu.reg[4] << endl; failed++; }
 
-    results.push_back(runTest("BNE: equal -> branch not taken",
-                              {{ADDI, 1, 0, 0, 5}, {ADDI, 2, 0, 0, 5}, {BNE, 0, 1, 2, 2}, {ADDI, 3, 0, 0, 99}},
-                              {{3, 99}}));
+    // BNE not taken: x1 == x2 so no branch, x3 gets 99
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,5},{ADDI,2,0,0,5},{BNE,0,1,2,2},{ADDI,3,0,0,99}}, 100, false);
+    if (cpu.reg[3] == 99) { cout << "PASS BNE (not taken)" << endl; passed++; }
+    else { cout << "FAIL BNE not taken  got " << cpu.reg[3] << " expected 99" << endl; failed++; }
 
     cout << endl;
 
     // ---- Jump tests ----
-    cout << "--- Jump Instructions ---" << endl;
+    cout << "-- Jumps --" << endl;
 
-    results.push_back(runTest("JAL: jump forward 2, saves return addr",
-                              {{JAL, 1, 0, 0, 2}, {ADDI, 2, 0, 0, 99}, {ADDI, 3, 0, 0, 77}},
-                              {{1, 1}, {2, 0}, {3, 77}}));
+    // JAL: jump forward by 2, x1 saves return addr (pc+1=1), skips ADDI 99
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{JAL,1,0,0,2},{ADDI,2,0,0,99},{ADDI,3,0,0,77}}, 100, false);
+    if (cpu.reg[1] == 1 && cpu.reg[2] == 0 && cpu.reg[3] == 77)
+    { cout << "PASS JAL" << endl; passed++; }
+    else { cout << "FAIL JAL  x1=" << cpu.reg[1] << " x2=" << cpu.reg[2] << " x3=" << cpu.reg[3] << endl; failed++; }
 
-    results.push_back(runTest("JALR: jump to rs1+imm, saves return addr",
-                              {{ADDI, 5, 0, 0, 3}, {JALR, 1, 5, 0, 0}, {ADDI, 2, 0, 0, 99}, {ADDI, 3, 0, 0, 77}},
-                              {{1, 2}, {2, 0}, {3, 77}}));
+    // JALR: jump to rs1+imm, x5=3 so jumps to instruction 3
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,5,0,0,3},{JALR,1,5,0,0},{ADDI,2,0,0,99},{ADDI,3,0,0,77}}, 100, false);
+    if (cpu.reg[1] == 2 && cpu.reg[2] == 0 && cpu.reg[3] == 77)
+    { cout << "PASS JALR" << endl; passed++; }
+    else { cout << "FAIL JALR  x1=" << cpu.reg[1] << " x2=" << cpu.reg[2] << " x3=" << cpu.reg[3] << endl; failed++; }
 
     cout << endl;
 
     // ---- Misc tests ----
-    cout << "--- Miscellaneous ---" << endl;
+    cout << "-- Misc --" << endl;
 
-    results.push_back(runTest("NOP: does nothing, pc advances",
-                              {{ADDI, 1, 0, 0, 42}, {NOP, 0, 0, 0, 0}, {ADDI, 2, 0, 0, 77}},
-                              {{1, 42}, {2, 77}}));
+    // NOP: just advances pc, doesnt change registers
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,42},{NOP,0,0,0,0},{ADDI,2,0,0,77}}, 100, false);
+    if (cpu.reg[1] == 42 && cpu.reg[2] == 77) { cout << "PASS NOP" << endl; passed++; }
+    else { cout << "FAIL NOP  x1=" << cpu.reg[1] << " x2=" << cpu.reg[2] << endl; failed++; }
 
-    results.push_back(runTest("x0 hardwired: writing to x0 stays 0",
-                              {{ADDI, 0, 0, 0, 42}},
-                              {{0, 0}}));
+    // x0 hardwired to zero: even if you write to it, stays 0
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,0,0,0,42}}, 100, false);
+    if (cpu.reg[0] == 0) { cout << "PASS x0 hardwired zero" << endl; passed++; }
+    else { cout << "FAIL x0  got " << cpu.reg[0] << " expected 0" << endl; failed++; }
 
     cout << endl;
 
     // ---- Integration test: loop countdown ----
-    cout << "--- Integration Test ---" << endl;
+    cout << "-- Integration: loop countdown --" << endl;
 
-    results.push_back(runTest("Loop: count down from 3 to 0",
-                              {
-                                  {ADDI, 1, 0, 0, 3},  // x1 = 3
-                                  {BEQ, 0, 1, 0, 3},   // if x1 == 0, jump to pc+3 (exit)
-                                  {ADDI, 1, 1, 0, -1}, // x1 = x1 - 1
-                                  {JAL, 8, 0, 0, -2},  // jump back to BEQ
-                                  {NOP, 0, 0, 0, 0}    // end
-                              },
-                              {{1, 0}}));
+    // counts x1 down from 3 to 0 using BEQ + JAL
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu,
+        {
+            {ADDI, 1, 0, 0, 3},  // x1 = 3
+            {BEQ, 0, 1, 0, 3},   // if x1 == 0 jump forward to NOP (exit)
+            {ADDI, 1, 1, 0, -1}, // x1 = x1 - 1
+            {JAL, 8, 0, 0, -2},  // jump back to BEQ
+            {NOP, 0, 0, 0, 0}    // end
+        },
+        100, false);
+    if (cpu.reg[1] == 0) { cout << "PASS loop countdown" << endl; passed++; }
+    else { cout << "FAIL loop  x1=" << cpu.reg[1] << " expected 0" << endl; failed++; }
 
     cout << endl;
 
     // ---- Summary ----
-    int passed = 0, failed = 0;
-    for (const auto &r : results)
-    {
-        if (r.passed)
-            passed++;
-        else
-            failed++;
-    }
-
-    cout << "========================================" << endl;
-    cout << "   Test Results: " << passed << "/" << (passed + failed) << " PASSED";
-    if (failed > 0)
-        cout << "  (" << failed << " FAILED)";
+    cout << "Results: " << passed << "/" << (passed + failed) << " passed";
+    if (failed > 0) cout << "  (" << failed << " failed)";
     cout << endl;
-    cout << "========================================" << endl;
 
-    // ---- Demo: run the integration test verbosely ----
-    if (passed == (int)results.size())
+    // ---- Demo: verbose run to show the step-by-step trace ----
+    if (failed == 0)
     {
-        cout << endl;
-        cout << "All tests passed! Running verbose demo..." << endl
-             << endl;
+        cout << endl << "All tests passed! Here is a verbose run as demo:" << endl << endl;
 
-        CPU cpu;
-        cpu.mem.resize(256); // 256 bytes = 64 words
+        CPU demo_cpu;
+        demo_cpu.mem.resize(256); // 256 bytes = 64 words
 
         vector<Instruction> demo =
-            {
-                {ADDI, 1, 0, 0, 10}, // x1 = 10
-                {ADDI, 2, 0, 0, 20}, // x2 = 20
-                {ADD, 3, 1, 2, 0},   // x3 = x1 + x2 = 30
-                {SUB, 4, 2, 1, 0},   // x4 = x2 - x1 = 10
-                {SW, 0, 0, 3, 0},    // store x3 at mem[0]
-                {LW, 5, 0, 0, 0},    // x5 = mem[0] = 30
-                {NOP, 0, 0, 0, 0}    // end
+        {
+            {ADDI, 1, 0, 0, 10}, // x1 = 10
+            {ADDI, 2, 0, 0, 20}, // x2 = 20
+            {ADD,  3, 1, 2, 0},  // x3 = x1 + x2 = 30
+            {SUB,  4, 2, 1, 0},  // x4 = x2 - x1 = 10
+            {SW,   0, 0, 3, 0},  // store x3 at mem[0]
+            {LW,   5, 0, 0, 0},  // x5 = mem[0] = 30
+            {NOP,  0, 0, 0, 0}   // end
 
-                // you may uncomment the example outputs to run em for yourself
-            };
+            //you may uncomment the example outputs to run em for yourself
+        };
 
-        run(cpu, demo, 200);
+        run(demo_cpu, demo, 200);
 
-        cout << "Final state:" << endl;
-        printRegisters(cpu, true);
+        cout << "Final registers:" << endl;
+        printRegisters(demo_cpu);
         cout << endl;
-        printMemory(cpu, 4);
+        printMemory(demo_cpu, 4);
     }
 
     return 0;
