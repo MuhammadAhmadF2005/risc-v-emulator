@@ -664,6 +664,8 @@ void execute(CPU &cpu, const Instruction &inst)
     cpu.reg[0] = 0;
 }
 
+//helper runner function takes in vector form instructions
+//ensures program ends when PC goes out of bounds
 void run(CPU &cpu, const vector<Instruction> &program, int maxSteps = 1000, bool verbose = true)
 {
     int steps = 0;
@@ -694,7 +696,7 @@ void run(CPU &cpu, const vector<Instruction> &program, int maxSteps = 1000, bool
         }
     }
 }
-
+//-----------------MAIN-----------------------//
 int main()
 {
     cout << "=== RISC-V RV32I Emulator - Test Cases ===" << endl;
