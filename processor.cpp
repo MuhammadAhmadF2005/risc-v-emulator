@@ -43,16 +43,29 @@ enum Opcode
     LUI,
     AUIPC,
     // Loads
+    LB,
+    LH,
     LW,
+    LBU,
+    LHU,
     // Stores
+    SB,
+    SH,
     SW,
     // Branches
     BEQ,
     BNE,
+    BLT,
+    BGE,
+    BLTU,
+    BGEU,
     // Jumps
     JAL,
     JALR,
-    // Misc
+    // System / Misc
+    FENCE,
+    ECALL,
+    EBREAK,
     NOP
 };
 
@@ -103,18 +116,44 @@ const char *opName(Opcode op)
         return "LUI";
     case AUIPC:
         return "AUIPC";
+    case LB:
+        return "LB";
+    case LH:
+        return "LH";
     case LW:
         return "LW";
+    case LBU:
+        return "LBU";
+    case LHU:
+        return "LHU";
+    case SB:
+        return "SB";
+    case SH:
+        return "SH";
     case SW:
         return "SW";
     case BEQ:
         return "BEQ";
     case BNE:
         return "BNE";
+    case BLT:
+        return "BLT";
+    case BGE:
+        return "BGE";
+    case BLTU:
+        return "BLTU";
+    case BGEU:
+        return "BGEU";
     case JAL:
         return "JAL";
     case JALR:
         return "JALR";
+    case FENCE:
+        return "FENCE";
+    case ECALL:
+        return "ECALL";
+    case EBREAK:
+        return "EBREAK";
     case NOP:
         return "NOP";
     default:
@@ -168,6 +207,48 @@ void write32(CPU &cpu, int address, uint32_t value)
     cpu.mem[address + 3] = (value >> 24) & 0xff;
 }
 
+// byte and halfword memory helpers for LB/LH/SB/SH etc
+uint8_t read8(const CPU &cpu, int address)
+{
+    if (address < 0 || address >= (int)cpu.mem.size())
+    {
+        cerr << "read8: address out of range: " << address << endl;
+        return 0;
+    }
+    return cpu.mem[address];
+}
+
+uint16_t read16(const CPU &cpu, int address)
+{
+    if (address < 0 || address + 1 >= (int)cpu.mem.size())
+    {
+        cerr << "read16: address out of range: " << address << endl;
+        return 0;
+    }
+    return cpu.mem[address] | (cpu.mem[address + 1] << 8);
+}
+
+void write8(CPU &cpu, int address, uint8_t value)
+{
+    if (address < 0 || address >= (int)cpu.mem.size())
+    {
+        cerr << "write8: address out of range: " << address << endl;
+        return;
+    }
+    cpu.mem[address] = value;
+}
+
+void write16(CPU &cpu, int address, uint16_t value)
+{
+    if (address < 0 || address + 1 >= (int)cpu.mem.size())
+    {
+        cerr << "write16: address out of range: " << address << endl;
+        return;
+    }
+    cpu.mem[address] = value & 0xff;
+    cpu.mem[address + 1] = (value >> 8) & 0xff;
+}
+
 // Printing utilities
 void printInstruction(const CPU &cpu, const Instruction &inst)
 {
@@ -205,16 +286,26 @@ void printInstruction(const CPU &cpu, const Instruction &inst)
         cout << " " << regNames[inst.rd] << ", " << inst.imm;
         break;
     // Load: op rd, imm(rs1)
+    case LB:
+    case LH:
     case LW:
+    case LBU:
+    case LHU:
         cout << " " << regNames[inst.rd] << ", " << inst.imm << "(" << regNames[inst.rs1] << ")";
         break;
     // Store: op rs2, imm(rs1)
+    case SB:
+    case SH:
     case SW:
         cout << " " << regNames[inst.rs2] << ", " << inst.imm << "(" << regNames[inst.rs1] << ")";
         break;
     // Branch: op rs1, rs2, offset
     case BEQ:
     case BNE:
+    case BLT:
+    case BGE:
+    case BLTU:
+    case BGEU:
         cout << " " << regNames[inst.rs1] << ", " << regNames[inst.rs2] << ", offset=" << inst.imm;
         break;
     // JAL: op rd, offset
@@ -225,6 +316,9 @@ void printInstruction(const CPU &cpu, const Instruction &inst)
     case JALR:
         cout << " " << regNames[inst.rd] << ", " << regNames[inst.rs1] << ", offset=" << inst.imm;
         break;
+    case FENCE:
+    case ECALL:
+    case EBREAK:
     case NOP:
         break;
     }
@@ -282,6 +376,32 @@ void execute(CPU &cpu, const Instruction &inst)
         cpu.pc++;
         break;
 
+    // LB: load byte, sign-extend to 32 bits
+    case LB:
+    {
+        int address = (int)(cpu.reg[inst.rs1] + (uint32_t)inst.imm);
+        uint8_t byte = read8(cpu, address);
+        cpu.reg[inst.rd] = (uint32_t)(int32_t)(int8_t)byte; // sign extend
+        cpu.pc++;
+        break;
+    }
+
+    // LH: load halfword, sign-extend to 32 bits (must be 2-byte aligned)
+    case LH:
+    {
+        int address = (int)(cpu.reg[inst.rs1] + (uint32_t)inst.imm);
+        if (address % 2 != 0)
+        {
+            cerr << "LH: misaligned address " << address << endl;
+            cpu.pc++;
+            break;
+        }
+        uint16_t half = read16(cpu, address);
+        cpu.reg[inst.rd] = (uint32_t)(int32_t)(int16_t)half; // sign extend
+        cpu.pc++;
+        break;
+    }
+
     case LW:
     {
         int address = (int)(cpu.reg[inst.rs1] + (uint32_t)inst.imm);
@@ -292,6 +412,54 @@ void execute(CPU &cpu, const Instruction &inst)
             break;
         }
         cpu.reg[inst.rd] = read32(cpu, address);
+        cpu.pc++;
+        break;
+    }
+
+    // LBU: load byte, zero-extend (no sign extension)
+    case LBU:
+    {
+        int address = (int)(cpu.reg[inst.rs1] + (uint32_t)inst.imm);
+        cpu.reg[inst.rd] = (uint32_t)read8(cpu, address);
+        cpu.pc++;
+        break;
+    }
+
+    // LHU: load halfword, zero-extend (must be 2-byte aligned)
+    case LHU:
+    {
+        int address = (int)(cpu.reg[inst.rs1] + (uint32_t)inst.imm);
+        if (address % 2 != 0)
+        {
+            cerr << "LHU: misaligned address " << address << endl;
+            cpu.pc++;
+            break;
+        }
+        cpu.reg[inst.rd] = (uint32_t)read16(cpu, address);
+        cpu.pc++;
+        break;
+    }
+
+    // SB: store the lowest byte of rs2
+    case SB:
+    {
+        int address = (int)(cpu.reg[inst.rs1] + (uint32_t)inst.imm);
+        write8(cpu, address, (uint8_t)(cpu.reg[inst.rs2] & 0xFF));
+        cpu.pc++;
+        break;
+    }
+
+    // SH: store the lowest halfword of rs2 (must be 2-byte aligned)
+    case SH:
+    {
+        int address = (int)(cpu.reg[inst.rs1] + (uint32_t)inst.imm);
+        if (address % 2 != 0)
+        {
+            cerr << "SH: misaligned address " << address << endl;
+            cpu.pc++;
+            break;
+        }
+        write16(cpu, address, (uint16_t)(cpu.reg[inst.rs2] & 0xFFFF));
         cpu.pc++;
         break;
     }
@@ -324,12 +492,61 @@ void execute(CPU &cpu, const Instruction &inst)
             cpu.pc++;
         break;
 
+    // BLT: branch if rs1 < rs2 (SIGNED)
+    case BLT:
+        if ((int32_t)cpu.reg[inst.rs1] < (int32_t)cpu.reg[inst.rs2])
+            cpu.pc = (uint32_t)((int32_t)cpu.pc + inst.imm);
+        else
+            cpu.pc++;
+        break;
+
+    // BGE: branch if rs1 >= rs2 (SIGNED)
+    case BGE:
+        if ((int32_t)cpu.reg[inst.rs1] >= (int32_t)cpu.reg[inst.rs2])
+            cpu.pc = (uint32_t)((int32_t)cpu.pc + inst.imm);
+        else
+            cpu.pc++;
+        break;
+
+    // BLTU: branch if rs1 < rs2 (UNSIGNED)
+    case BLTU:
+        if (cpu.reg[inst.rs1] < cpu.reg[inst.rs2])
+            cpu.pc = (uint32_t)((int32_t)cpu.pc + inst.imm);
+        else
+            cpu.pc++;
+        break;
+
+    // BGEU: branch if rs1 >= rs2 (UNSIGNED)
+    case BGEU:
+        if (cpu.reg[inst.rs1] >= cpu.reg[inst.rs2])
+            cpu.pc = (uint32_t)((int32_t)cpu.pc + inst.imm);
+        else
+            cpu.pc++;
+        break;
+
     case JAL:
         cpu.reg[inst.rd] = cpu.pc + 1; // return address (instruction index)
         cpu.pc = (uint32_t)((int32_t)cpu.pc + inst.imm);
         break;
 
     case NOP:
+        cpu.pc++;
+        break;
+
+    // FENCE: memory ordering hint, no-op in our single-threaded emulator
+    case FENCE:
+        cpu.pc++;
+        break;
+
+    // ECALL: environment call (stub - just prints and moves on)
+    case ECALL:
+        cout << "ECALL at pc=" << cpu.pc << endl;
+        cpu.pc++;
+        break;
+
+    // EBREAK: breakpoint (stub - just prints and moves on)
+    case EBREAK:
+        cout << "EBREAK at pc=" << cpu.pc << endl;
         cpu.pc++;
         break;
 
@@ -481,7 +698,7 @@ void run(CPU &cpu, const vector<Instruction> &program, int maxSteps = 1000, bool
 int main()
 {
     cout << "=== RISC-V RV32I Emulator - Test Cases ===" << endl;
-    cout << "28 instructions implemented" << endl << endl;
+    cout << "all 40 base instructions implemented" << endl << endl;
 
     int passed = 0;
     int failed = 0;
@@ -666,6 +883,42 @@ int main()
     if (cpu.reg[2] == 99) { cout << "PASS SW + LW (offset)" << endl; passed++; }
     else { cout << "FAIL SW+LW  got " << cpu.reg[2] << " expected 99" << endl; failed++; }
 
+    // SB + LB: store byte 0xFF, load back with sign extension -> -1
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-1},{SB,0,0,1,0},{LB,2,0,0,0}}, 100, false);
+    if ((int32_t)cpu.reg[2] == -1) { cout << "PASS SB + LB (sign extend)" << endl; passed++; }
+    else { cout << "FAIL SB+LB  got " << (int32_t)cpu.reg[2] << " expected -1" << endl; failed++; }
+
+    // SB + LBU: store byte 0xFF, load back without sign extension -> 255
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-1},{SB,0,0,1,0},{LBU,2,0,0,0}}, 100, false);
+    if (cpu.reg[2] == 255) { cout << "PASS SB + LBU (zero extend)" << endl; passed++; }
+    else { cout << "FAIL SB+LBU  got " << cpu.reg[2] << " expected 255" << endl; failed++; }
+
+    // SH + LH: store halfword 0xFFFF, load back with sign extension -> -1
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-1},{SH,0,0,1,0},{LH,2,0,0,0}}, 100, false);
+    if ((int32_t)cpu.reg[2] == -1) { cout << "PASS SH + LH (sign extend)" << endl; passed++; }
+    else { cout << "FAIL SH+LH  got " << (int32_t)cpu.reg[2] << " expected -1" << endl; failed++; }
+
+    // SH + LHU: store halfword 0xFFFF, load back without sign extension -> 65535
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-1},{SH,0,0,1,0},{LHU,2,0,0,0}}, 100, false);
+    if (cpu.reg[2] == 65535) { cout << "PASS SH + LHU (zero extend)" << endl; passed++; }
+    else { cout << "FAIL SH+LHU  got " << cpu.reg[2] << " expected 65535" << endl; failed++; }
+
+    // SB with small positive value: store 42, load back
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,42},{SB,0,0,1,0},{LB,2,0,0,0}}, 100, false);
+    if (cpu.reg[2] == 42) { cout << "PASS SB + LB (positive)" << endl; passed++; }
+    else { cout << "FAIL SB+LB  got " << cpu.reg[2] << " expected 42" << endl; failed++; }
+
+    // SH with value 1000: store, load back
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,1000},{SH,0,0,1,0},{LH,2,0,0,0}}, 100, false);
+    if (cpu.reg[2] == 1000) { cout << "PASS SH + LH (positive)" << endl; passed++; }
+    else { cout << "FAIL SH+LH  got " << cpu.reg[2] << " expected 1000" << endl; failed++; }
+
     cout << endl;
 
     // ---- Branch tests ----
@@ -695,6 +948,54 @@ int main()
     if (cpu.reg[3] == 99) { cout << "PASS BNE (not taken)" << endl; passed++; }
     else { cout << "FAIL BNE not taken  got " << cpu.reg[3] << " expected 99" << endl; failed++; }
 
+    // BLT signed: -5 < 3 so branch taken
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-5},{ADDI,2,0,0,3},{BLT,0,1,2,2},{ADDI,3,0,0,99},{ADDI,4,0,0,77}}, 100, false);
+    if (cpu.reg[3] == 0 && cpu.reg[4] == 77) { cout << "PASS BLT (taken)" << endl; passed++; }
+    else { cout << "FAIL BLT taken  x3=" << cpu.reg[3] << " x4=" << cpu.reg[4] << endl; failed++; }
+
+    // BLT not taken: 5 < 3 is false
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,5},{ADDI,2,0,0,3},{BLT,0,1,2,2},{ADDI,3,0,0,99}}, 100, false);
+    if (cpu.reg[3] == 99) { cout << "PASS BLT (not taken)" << endl; passed++; }
+    else { cout << "FAIL BLT not taken  got " << cpu.reg[3] << " expected 99" << endl; failed++; }
+
+    // BGE signed: 5 >= 3 so branch taken
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,5},{ADDI,2,0,0,3},{BGE,0,1,2,2},{ADDI,3,0,0,99},{ADDI,4,0,0,77}}, 100, false);
+    if (cpu.reg[3] == 0 && cpu.reg[4] == 77) { cout << "PASS BGE (taken)" << endl; passed++; }
+    else { cout << "FAIL BGE taken  x3=" << cpu.reg[3] << " x4=" << cpu.reg[4] << endl; failed++; }
+
+    // BGE not taken: -5 >= 3 is false
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-5},{ADDI,2,0,0,3},{BGE,0,1,2,2},{ADDI,3,0,0,99}}, 100, false);
+    if (cpu.reg[3] == 99) { cout << "PASS BGE (not taken)" << endl; passed++; }
+    else { cout << "FAIL BGE not taken  got " << cpu.reg[3] << " expected 99" << endl; failed++; }
+
+    // BLTU unsigned: 1 < 0xFFFFFFFF so branch taken
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,1},{ADDI,2,0,0,-1},{BLTU,0,1,2,2},{ADDI,3,0,0,99},{ADDI,4,0,0,77}}, 100, false);
+    if (cpu.reg[3] == 0 && cpu.reg[4] == 77) { cout << "PASS BLTU (taken)" << endl; passed++; }
+    else { cout << "FAIL BLTU taken  x3=" << cpu.reg[3] << " x4=" << cpu.reg[4] << endl; failed++; }
+
+    // BLTU not taken: 0xFFFFFFFF < 1 is false unsigned
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-1},{ADDI,2,0,0,1},{BLTU,0,1,2,2},{ADDI,3,0,0,99}}, 100, false);
+    if (cpu.reg[3] == 99) { cout << "PASS BLTU (not taken)" << endl; passed++; }
+    else { cout << "FAIL BLTU not taken  got " << cpu.reg[3] << " expected 99" << endl; failed++; }
+
+    // BGEU unsigned: 0xFFFFFFFF >= 1 so branch taken
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,-1},{ADDI,2,0,0,1},{BGEU,0,1,2,2},{ADDI,3,0,0,99},{ADDI,4,0,0,77}}, 100, false);
+    if (cpu.reg[3] == 0 && cpu.reg[4] == 77) { cout << "PASS BGEU (taken)" << endl; passed++; }
+    else { cout << "FAIL BGEU taken  x3=" << cpu.reg[3] << " x4=" << cpu.reg[4] << endl; failed++; }
+
+    // BGEU not taken: 1 >= 0xFFFFFFFF is false unsigned
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,1},{ADDI,2,0,0,-1},{BGEU,0,1,2,2},{ADDI,3,0,0,99}}, 100, false);
+    if (cpu.reg[3] == 99) { cout << "PASS BGEU (not taken)" << endl; passed++; }
+    else { cout << "FAIL BGEU not taken  got " << cpu.reg[3] << " expected 99" << endl; failed++; }
+
     cout << endl;
 
     // ---- Jump tests ----
@@ -716,8 +1017,8 @@ int main()
 
     cout << endl;
 
-    // ---- Misc tests ----
-    cout << "-- Misc --" << endl;
+    // ---- Misc / System tests ----
+    cout << "-- Misc / System --" << endl;
 
     // NOP: just advances pc, doesnt change registers
     cpu = CPU(); cpu.mem.resize(256);
@@ -730,6 +1031,24 @@ int main()
     run(cpu, {{ADDI,0,0,0,42}}, 100, false);
     if (cpu.reg[0] == 0) { cout << "PASS x0 hardwired zero" << endl; passed++; }
     else { cout << "FAIL x0  got " << cpu.reg[0] << " expected 0" << endl; failed++; }
+
+    // FENCE: should just advance pc (no-op in our emulator)
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,42},{FENCE,0,0,0,0},{ADDI,2,0,0,77}}, 100, false);
+    if (cpu.reg[1] == 42 && cpu.reg[2] == 77) { cout << "PASS FENCE" << endl; passed++; }
+    else { cout << "FAIL FENCE  x1=" << cpu.reg[1] << " x2=" << cpu.reg[2] << endl; failed++; }
+
+    // ECALL: should print message and advance pc
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,42},{ECALL,0,0,0,0},{ADDI,2,0,0,77}}, 100, false);
+    if (cpu.reg[1] == 42 && cpu.reg[2] == 77) { cout << "PASS ECALL" << endl; passed++; }
+    else { cout << "FAIL ECALL  x1=" << cpu.reg[1] << " x2=" << cpu.reg[2] << endl; failed++; }
+
+    // EBREAK: should print message and advance pc
+    cpu = CPU(); cpu.mem.resize(256);
+    run(cpu, {{ADDI,1,0,0,42},{EBREAK,0,0,0,0},{ADDI,2,0,0,77}}, 100, false);
+    if (cpu.reg[1] == 42 && cpu.reg[2] == 77) { cout << "PASS EBREAK" << endl; passed++; }
+    else { cout << "FAIL EBREAK  x1=" << cpu.reg[1] << " x2=" << cpu.reg[2] << endl; failed++; }
 
     cout << endl;
 
