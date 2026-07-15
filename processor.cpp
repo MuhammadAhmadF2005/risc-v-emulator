@@ -218,6 +218,7 @@ uint8_t read8(const CPU &cpu, int address)
     return cpu.mem[address];
 }
 
+//read 16 bit memory
 uint16_t read16(const CPU &cpu, int address)
 {
     if (address < 0 || address + 1 >= (int)cpu.mem.size())
@@ -228,6 +229,7 @@ uint16_t read16(const CPU &cpu, int address)
     return cpu.mem[address] | (cpu.mem[address + 1] << 8);
 }
 
+//write one byte (8 bits of mem)
 void write8(CPU &cpu, int address, uint8_t value)
 {
     if (address < 0 || address >= (int)cpu.mem.size())
@@ -238,6 +240,7 @@ void write8(CPU &cpu, int address, uint8_t value)
     cpu.mem[address] = value;
 }
 
+//helper function for write 16bits
 void write16(CPU &cpu, int address, uint16_t value)
 {
     if (address < 0 || address + 1 >= (int)cpu.mem.size())
