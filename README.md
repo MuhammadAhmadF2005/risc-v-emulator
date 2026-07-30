@@ -8,3 +8,6 @@
 ## Project Details
 
 *This emulator implements RV32I base instructions in C++ using custom logical handling. The primary goal is to simulate ELF file execution (linkers, loaders, memory mapping) and run DOOM. Follow along and don't forget to star the repository!* 
+
+TODO: change instruction logic to allow binary input (i.e.
+.exe or .elf files not just hardcoded assembly in vector...) which is imperative for running any forms of elf/exe files including DOOM
