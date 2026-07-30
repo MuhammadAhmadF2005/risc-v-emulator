@@ -50,14 +50,14 @@ inline void printRegisters(const CPU &cpu)
     }
 }
 
-inline void printMemory(const CPU &cpu, int words = 8)
+inline void printMemory(const CPU &cpu, int startAddr = 0, int words = 8)
 {
-    std::cout << "Memory (first " << words << " words):\n";
+    std::cout << "Memory [" << startAddr << ".." << startAddr + words * 4 - 4 << "]:\n";
     for (int i = 0; i < words; ++i) {
-        int addr = i * 4;
+        int addr = startAddr + i * 4;
         if (addr + 3 >= (int)cpu.mem.size()) break;
         u32 val = read32(cpu, addr);
-        if (val != 0) // Only print non-zero memory
+        if (val != 0)
             std::cout << "  mem[" << addr << "] = " << val << "\n";
     }
 }
