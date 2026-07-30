@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 
+//sext=sign extension
 static i32 sext(u32 val, u32 bit) {
     u32 m = 1u << bit;
     return (val & m) ? (i32)(val | ~(m - 1)) : (i32)val;

@@ -4,7 +4,7 @@
 #include "memory.h"
 #include <iostream>
 
-// --- Printing utilities ---
+// --- Printing utilities --- //
 inline void printInstruction(const CPU &cpu, const Instruction &inst)
 {
     std::cout << "PC=" << cpu.pc << "  " << opNames[inst.op];
