@@ -4,13 +4,14 @@
 #include <cstdlib>
 #include <iostream>
 
-//sext=sign extension
 static i32 sext(u32 val, u32 bit) {
     u32 m = 1u << bit;
     return (val & m) ? (i32)(val | ~(m - 1)) : (i32)val;
 }
 
+//immediate 
 static i32 immI(u32 w) { return sext(w >> 20, 11); }
+//store imm..
 static i32 immS(u32 w) { return sext(((w >> 25) << 5) | ((w >> 7) & 0x1F), 11); }
 static i32 immB(u32 w) {
     return sext(((w >> 31) << 12) | (((w >> 7) & 1) << 11) |

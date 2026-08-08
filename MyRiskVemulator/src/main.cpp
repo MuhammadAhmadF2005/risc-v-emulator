@@ -8,18 +8,6 @@
 
 using namespace std;
 
-/*
-  The program lives in cpu.mem starting at address 0, just like a real CPU.
-  cpu.pc is a byte address. Each fetch does read32(cpu, cpu.pc).
-  execute() advances cpu.pc by 4 for sequential instructions, or directly
-  sets it for branches and jumps using byte offsets — no unit conversion needed.
-
-  For a real binary: ./rvemu program.bin
-  That's the flat .text section you get from:
-    riscv32-unknown-elf-objcopy -O binary program.elf program.bin
-  ELF loading will just memcpy .text/.data into cpu.mem at the right addresses
-  and set cpu.pc to e_entry — decode/execute need no changes.
-*/
 
 static u32 loadFile(CPU &cpu, const char *path) {
     ifstream f(path, ios::binary);
