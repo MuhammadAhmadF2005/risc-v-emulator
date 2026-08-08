@@ -1,6 +1,8 @@
 #include "cpu.h"
 #include "memory.h"
 #include <iostream>
+#include <cstdio>
+#include <cstdlib>
 
 void execute(CPU &cpu, const Instruction &inst)
 {
@@ -104,13 +106,110 @@ void execute(CPU &cpu, const Instruction &inst)
         break;
 
     case ECALL:
-        std::cout << "ECALL at pc=" << cpu.pc << std::endl;
+        // Linux RISC-V ABI syscall handling:
+        // Syscall number in reg[17] (a7)
+        // Args in reg[10-15] (a0-a5)
+        // Return value in reg[10] (a0)
+        switch (cpu.reg[17]) {
+        case 64: { // sys_write
+            u32 bufAddr = cpu.reg[11];
+            u32 count = cpu.reg[12];
+            if (bufAddr + count <= cpu.mem.size()) {
+                fwrite(&cpu.mem[bufAddr], 1, count, stdout);
+                fflush(stdout);
+                cpu.reg[10] = count;
+            } else {
+                cpu.reg[10] = (u32)-1;
+            }
+            break;
+        }
+        case 93: // sys_exit
+            exit(cpu.reg[10]);
+            break;
+        case 214: { // sys_brk
+            static u32 currentBrk = 0x100000;
+            if (cpu.reg[10] != 0) {
+                currentBrk = cpu.reg[10];
+            }
+            cpu.reg[10] = currentBrk;
+            break;
+        }
+        default:
+            std::cerr << "Unhandled ECALL syscall: " << cpu.reg[17] << " at pc=" << cpu.pc << std::endl;
+            break;
+        }
         cpu.pc += 4;
         break;
     case EBREAK:
         std::cout << "EBREAK at pc=" << cpu.pc << std::endl;
         cpu.pc += 4;
         break;
+
+    // M-extension instructions
+    case MUL:
+        cpu.reg[inst.rd] = (u32)((i64)(i32)cpu.reg[inst.rs1] * (i64)(i32)cpu.reg[inst.rs2]);
+        cpu.pc += 4;
+        break;
+    case MULH:
+        cpu.reg[inst.rd] = (u32)(((i64)(i32)cpu.reg[inst.rs1] * (i64)(i32)cpu.reg[inst.rs2]) >> 32);
+        cpu.pc += 4;
+        break;
+    case MULHSU:
+        cpu.reg[inst.rd] = (u32)(((i64)(i32)cpu.reg[inst.rs1] * (u64)cpu.reg[inst.rs2]) >> 32);
+        cpu.pc += 4;
+        break;
+    case MULHU:
+        cpu.reg[inst.rd] = (u32)(((u64)cpu.reg[inst.rs1] * (u64)cpu.reg[inst.rs2]) >> 32);
+        cpu.pc += 4;
+        break;
+    case DIV: {
+        i32 dividend = (i32)cpu.reg[inst.rs1];
+        i32 divisor  = (i32)cpu.reg[inst.rs2];
+        if (divisor == 0) {
+            cpu.reg[inst.rd] = 0xFFFFFFFF;
+        } else if (dividend == (i32)0x80000000 && divisor == -1) {
+            cpu.reg[inst.rd] = (u32)0x80000000;
+        } else {
+            cpu.reg[inst.rd] = (u32)(dividend / divisor);
+        }
+        cpu.pc += 4;
+        break;
+    }
+    case DIVU: {
+        u32 dividend = cpu.reg[inst.rs1];
+        u32 divisor  = cpu.reg[inst.rs2];
+        if (divisor == 0) {
+            cpu.reg[inst.rd] = 0xFFFFFFFF;
+        } else {
+            cpu.reg[inst.rd] = dividend / divisor;
+        }
+        cpu.pc += 4;
+        break;
+    }
+    case REM: {
+        i32 dividend = (i32)cpu.reg[inst.rs1];
+        i32 divisor  = (i32)cpu.reg[inst.rs2];
+        if (divisor == 0) {
+            cpu.reg[inst.rd] = (u32)dividend;
+        } else if (dividend == (i32)0x80000000 && divisor == -1) {
+            cpu.reg[inst.rd] = 0;
+        } else {
+            cpu.reg[inst.rd] = (u32)(dividend % divisor);
+        }
+        cpu.pc += 4;
+        break;
+    }
+    case REMU: {
+        u32 dividend = cpu.reg[inst.rs1];
+        u32 divisor  = cpu.reg[inst.rs2];
+        if (divisor == 0) {
+            cpu.reg[inst.rd] = dividend;
+        } else {
+            cpu.reg[inst.rd] = dividend % divisor;
+        }
+        cpu.pc += 4;
+        break;
+    }
 
     // LUI loads the upper-20-bit immediate directly into rd (lower 12 bits are zero)
     case LUI:

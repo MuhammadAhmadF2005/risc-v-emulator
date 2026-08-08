@@ -34,6 +34,18 @@ inline Instruction decode(u32 w) {
     switch (op) {
 
     case 0x33: { // R-type
+        if (f7 == 0x01) {
+            switch (f3) {
+            case 0x0: return { MUL,    rd, rs1, rs2, 0 };
+            case 0x1: return { MULH,   rd, rs1, rs2, 0 };
+            case 0x2: return { MULHSU, rd, rs1, rs2, 0 };
+            case 0x3: return { MULHU,  rd, rs1, rs2, 0 };
+            case 0x4: return { DIV,    rd, rs1, rs2, 0 };
+            case 0x5: return { DIVU,   rd, rs1, rs2, 0 };
+            case 0x6: return { REM,    rd, rs1, rs2, 0 };
+            case 0x7: return { REMU,   rd, rs1, rs2, 0 };
+            }
+        }
         switch (f3) {
         case 0x0: return { f7 ? SUB : ADD, rd, rs1, rs2, 0 };
         case 0x1: return { SLL,  rd, rs1, rs2, 0 };

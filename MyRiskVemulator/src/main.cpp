@@ -2,25 +2,12 @@
 #include "decode.h"
 #include "debug.h"
 #include "memory.h"
+#include "elf.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
 
 using namespace std;
-
-
-static u32 loadFile(CPU &cpu, const char *path) {
-    ifstream f(path, ios::binary);
-    if (!f) { cerr << "cannot open: " << path << "\n"; exit(1); }
-    u32 addr = 0;
-    u32 word;
-    while (f.read(reinterpret_cast<char *>(&word), 4)) {
-        if (addr + 4 > (u32)cpu.mem.size()) { cerr << "binary too large for memory\n"; exit(1); }
-        write32(cpu, addr, word);
-        addr += 4;
-    }
-    return addr;
-}
 
 static void run(CPU &cpu, u32 textEnd, int maxSteps = 1000, bool verbose = true)
 {
@@ -52,13 +39,16 @@ int main(int argc, char *argv[])
     cout << "=== RISC-V RV32I Emulator ===\n\n";
 
     CPU cpu;
-    cpu.mem.resize(4096, 0);
+    cpu.mem.resize(64 * 1024 * 1024, 0);
 
     if (argc >= 2) {
-        u32 textEnd = loadFile(cpu, argv[1]);
-        cout << "loaded " << (textEnd / 4) << " words from " << argv[1] << "\n\n";
-        cpu.pc = 0;
-        run(cpu, textEnd, 100000, false);
+        if (!loadELF(cpu, argv[1])) {
+            cerr << "Failed to load ELF file: " << argv[1] << "\n";
+            return 1;
+        }
+        cout << "Loaded ELF file: " << argv[1] << "\n\n";
+        // Run until end of memory or exit via sys_exit syscall / max steps
+        run(cpu, (u32)cpu.mem.size(), 1000000, false);
         printRegisters(cpu);
     } else {
         // program occupies bytes 0x00-0x17 (6 instructions * 4 bytes)
@@ -77,7 +67,7 @@ int main(int argc, char *argv[])
         u32 textEnd = addr;
 
         cpu.pc = 0;
-        cout << "--- demo (pass a flat .bin as argv[1] for real programs) ---\n\n";
+        cout << "--- demo (pass an ELF binary as argv[1] for real programs) ---\n\n";
         run(cpu, textEnd, 200, true);
     }
 

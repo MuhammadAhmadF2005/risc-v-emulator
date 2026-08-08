@@ -29,7 +29,9 @@ enum Opcode
     // Jumps
     JAL, JALR,
     // System / Misc
-    FENCE, ECALL, EBREAK, NOP
+    FENCE, ECALL, EBREAK, NOP,
+    // M-extension
+    MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU
 };
 
 // Directly map enum to string (quicker lookup)
@@ -41,7 +43,8 @@ inline const char* opNames[] = {
     "SB", "SH", "SW",
     "BEQ", "BNE", "BLT", "BGE", "BLTU", "BGEU",
     "JAL", "JALR",
-    "FENCE", "ECALL", "EBREAK", "NOP"
+    "FENCE", "ECALL", "EBREAK", "NOP",
+    "MUL", "MULH", "MULHSU", "MULHU", "DIV", "DIVU", "REM", "REMU"
 };
 
 struct Instruction
