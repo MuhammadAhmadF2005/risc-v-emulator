@@ -2,3 +2,10 @@
 temp*
 *.exe
 processor_flow.md
+/tests
+viva.md
+cpu.md
+/obj
+/bin
+/tests
+
