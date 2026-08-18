@@ -2,16 +2,6 @@
 
 A RISC-V RV32IM emulator written from scratch in C++ with the goal of running DOOM.
 
-## Status
-
-| Component | Status |
-|---|---|
-| RV32I Base Integer ISA | ✅ Complete |
-| M Extension (Multiply/Divide) | ✅ Complete |
-| ELF32 Loader | ✅ Complete |
-| Multi-Segment Loading (.text, .data, .bss) | ✅ Complete |
-| Linux Syscall Interface | ✅ Partial |
-| DOOM WAD Loading | 🔧 In Progress |
 
 ## Architecture
 
@@ -94,36 +84,12 @@ python MyRiskVemulator/tests/generate_more_elfs.py
 python MyRiskVemulator/tests/run_elf_suite.py
 ```
 
-Test coverage:
-
-| Test | Validates |
-|---|---|
-| loop_sum | Branching, loops, arithmetic (1+2+...+10 = 55) |
-| loop_fact | M extension MUL (5! = 120) |
-| loop_print | sys_write syscall, string output |
-| multi_segment | Multi-segment loading (.text + .data + .bss) |
-| fibonacci | Entry point offset, Fibonacci F(10) = 55 |
-| hello_str | ELF string data via sys_write |
-| bad_magic | Rejects invalid ELF magic |
-| bad_class64 | Rejects 64-bit ELF |
-| bad_endian | Rejects big-endian ELF |
 
 ## Repository Structure
 
 - **MyRiskVemulator/** — Main emulator source and tests
 - **learning/** — Practice exercises and session files from the KU Leuven CASS course
 
-## Roadmap to DOOM
-
-1. ~~Implement RV32I base ISA~~
-2. ~~Add M extension~~
-3. ~~Build ELF loader~~
-4. ~~Multi-segment and BSS support~~
-5. ~~Syscall stubs for file I/O~~
-6. Wire syscall stubs to real host file I/O (open/read/close/lseek WAD files)
-7. Implement a framebuffer device for video output
-8. Add keyboard input handling
-9. Cross-compile DOOM for RV32IM and run it
 
 ## References
 
