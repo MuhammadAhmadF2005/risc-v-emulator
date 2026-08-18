@@ -2,4 +2,4 @@
 
 #include "cpu.h"
 
-bool loadELF(CPU &cpu, const char *path)
+bool loadELF(CPU &cpu, const char *path);

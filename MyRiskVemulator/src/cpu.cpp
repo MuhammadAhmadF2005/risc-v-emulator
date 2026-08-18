@@ -106,11 +106,29 @@ void execute(CPU &cpu, const Instruction &inst)
         break;
 
     case ECALL:
-        // Linux RISC-V ABI syscall handling:
-        // Syscall number in reg[17] (a7)
-        // Args in reg[10-15] (a0-a5)
-        // Return value in reg[10] (a0)
         switch (cpu.reg[17]) {
+        case 56: { // sys_openat
+            cpu.reg[10] = 3;
+            break;
+        }
+        case 57: { // sys_close
+            cpu.reg[10] = 0;
+            break;
+        }
+        case 62: { // sys_lseek
+            cpu.reg[10] = 0;
+            break;
+        }
+        case 63: { // sys_read
+            u32 bufAddr = cpu.reg[11];
+            u32 count = cpu.reg[12];
+            if (bufAddr + count <= cpu.mem.size()) {
+                cpu.reg[10] = 0;
+            } else {
+                cpu.reg[10] = (u32)-1;
+            }
+            break;
+        }
         case 64: { // sys_write
             u32 bufAddr = cpu.reg[11];
             u32 count = cpu.reg[12];
@@ -127,11 +145,18 @@ void execute(CPU &cpu, const Instruction &inst)
             exit(cpu.reg[10]);
             break;
         case 214: { // sys_brk
-            static u32 currentBrk = 0x100000;
+            static u32 currentBrk = 0x800000;
             if (cpu.reg[10] != 0) {
                 currentBrk = cpu.reg[10];
             }
             cpu.reg[10] = currentBrk;
+            break;
+        }
+        case 222: { // sys_mmap
+            static u32 mmapBase = 0x2000000;
+            u32 len = cpu.reg[11];
+            cpu.reg[10] = mmapBase;
+            mmapBase += (len + 0xFFF) & ~0xFFFu;
             break;
         }
         default:
@@ -145,7 +170,6 @@ void execute(CPU &cpu, const Instruction &inst)
         cpu.pc += 4;
         break;
 
-    // M-extension instructions
     case MUL:
         cpu.reg[inst.rd] = (u32)((i64)(i32)cpu.reg[inst.rs1] * (i64)(i32)cpu.reg[inst.rs2]);
         cpu.pc += 4;
@@ -211,12 +235,10 @@ void execute(CPU &cpu, const Instruction &inst)
         break;
     }
 
-    // LUI loads the upper-20-bit immediate directly into rd (lower 12 bits are zero)
     case LUI:
         cpu.reg[inst.rd] = (u32)inst.imm;
         cpu.pc += 4;
         break;
-    // AUIPC adds the upper-20-bit immediate to pc
     case AUIPC:
         cpu.reg[inst.rd] = cpu.pc + (u32)inst.imm;
         cpu.pc += 4;
@@ -295,5 +317,3 @@ void execute(CPU &cpu, const Instruction &inst)
 
     cpu.reg[0] = 0;
 }
-
-//note: the instruciton logic is largely inspired from https://msyksphinz-self.github.io/riscv-isadoc/ ! Do check it out!!!

@@ -3,7 +3,6 @@
 #include <iostream>
 #include <vector>
 
-// 32-bit ELF Header layout
 struct Elf32_Ehdr {
     u8  e_ident[16];
     u16 e_type;
@@ -21,7 +20,6 @@ struct Elf32_Ehdr {
     u16 e_shstrndx;
 };
 
-// 32-bit ELF Program Header layout
 struct Elf32_Phdr {
     u32 p_type;
     u32 p_offset;
@@ -48,14 +46,12 @@ bool loadELF(CPU &cpu, const char *path) {
         return false;
     }
 
-    // Verify ELF magic: 0x7F 'E' 'L' 'F'
     if (ehdr.e_ident[0] != 0x7F || ehdr.e_ident[1] != 'E' ||
         ehdr.e_ident[2] != 'L' || ehdr.e_ident[3] != 'F') {
         std::cerr << "Invalid ELF magic numbers: " << path << "\n";
         return false;
     }
 
-    // Class: 1 = ELF32, Data: 1 = Little Endian
     if (ehdr.e_ident[4] != 1 || ehdr.e_ident[5] != 1) {
         std::cerr << "Not a 32-bit Little-Endian ELF file: " << path << "\n";
         return false;
@@ -63,7 +59,6 @@ bool loadELF(CPU &cpu, const char *path) {
 
     cpu.pc = ehdr.e_entry;
 
-    // Load PT_LOAD segments
     for (int i = 0; i < ehdr.e_phnum; ++i) {
         Elf32_Phdr phdr;
         file.seekg(ehdr.e_phoff + i * ehdr.e_phentsize);
@@ -78,7 +73,6 @@ bool loadELF(CPU &cpu, const char *path) {
                 return false;
             }
 
-            // Copy file data into CPU memory
             file.seekg(phdr.p_offset);
             if (phdr.p_filesz > 0) {
                 if (!file.read(reinterpret_cast<char*>(&cpu.mem[phdr.p_vaddr]), phdr.p_filesz)) {
@@ -87,7 +81,6 @@ bool loadELF(CPU &cpu, const char *path) {
                 }
             }
 
-            // Zero out remaining memsz - filesz bytes
             if (phdr.p_memsz > phdr.p_filesz) {
                 std::fill(cpu.mem.begin() + phdr.p_vaddr + phdr.p_filesz,
                           cpu.mem.begin() + phdr.p_vaddr + phdr.p_memsz,

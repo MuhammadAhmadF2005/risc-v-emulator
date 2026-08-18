@@ -9,9 +9,7 @@ static i32 sext(u32 val, u32 bit) {
     return (val & m) ? (i32)(val | ~(m - 1)) : (i32)val;
 }
 
-//immediate 
 static i32 immI(u32 w) { return sext(w >> 20, 11); }
-//store imm..
 static i32 immS(u32 w) { return sext(((w >> 25) << 5) | ((w >> 7) & 0x1F), 11); }
 static i32 immB(u32 w) {
     return sext(((w >> 31) << 12) | (((w >> 7) & 1) << 11) |
@@ -33,7 +31,7 @@ inline Instruction decode(u32 w) {
 
     switch (op) {
 
-    case 0x33: { // R-type
+    case 0x33: {
         if (f7 == 0x01) {
             switch (f3) {
             case 0x0: return { MUL,    rd, rs1, rs2, 0 };
@@ -59,7 +57,7 @@ inline Instruction decode(u32 w) {
         break;
     }
 
-    case 0x13: { // I-type ALU
+    case 0x13: {
         i32 imm = immI(w);
         switch (f3) {
         case 0x0: return { ADDI,  rd, rs1, 0, imm };
@@ -74,7 +72,7 @@ inline Instruction decode(u32 w) {
         break;
     }
 
-    case 0x03: { // Loads
+    case 0x03: {
         i32 imm = immI(w);
         switch (f3) {
         case 0x0: return { LB,  rd, rs1, 0, imm };
@@ -86,7 +84,7 @@ inline Instruction decode(u32 w) {
         break;
     }
 
-    case 0x23: { // Stores
+    case 0x23: {
         i32 imm = immS(w);
         switch (f3) {
         case 0x0: return { SB, 0, rs1, rs2, imm };
@@ -96,7 +94,7 @@ inline Instruction decode(u32 w) {
         break;
     }
 
-    case 0x63: { // Branches
+    case 0x63: {
         i32 imm = immB(w);
         switch (f3) {
         case 0x0: return { BEQ,  0, rs1, rs2, imm };
@@ -109,7 +107,6 @@ inline Instruction decode(u32 w) {
         break;
     }
 
-    // immU already has lower 12 bits zeroed — store as-is, execute assigns directly
     case 0x37: return { LUI,   rd, 0, 0, immU(w) };
     case 0x17: return { AUIPC, rd, 0, 0, immU(w) };
     case 0x6F: return { JAL,   rd, 0, 0, immJ(w) };

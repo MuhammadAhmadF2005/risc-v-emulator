@@ -47,19 +47,19 @@ int main(int argc, char *argv[])
             return 1;
         }
         cout << "Loaded ELF file: " << argv[1] << "\n\n";
-        // Run until end of memory or exit via sys_exit syscall / max steps
-        run(cpu, (u32)cpu.mem.size(), 1000000, false);
+
+        cpu.reg[2] = (u32)cpu.mem.size() - 16;
+
+        run(cpu, (u32)cpu.mem.size(), 10000000, false);
         printRegisters(cpu);
     } else {
-        // program occupies bytes 0x00-0x17 (6 instructions * 4 bytes)
-        // data at 0x40 avoids overwriting the program
         vector<u32> demo = {
             0x00A00093,  // addi x1, x0, 10
             0x01400113,  // addi x2, x0, 20
-            0x002081B3,  // add  x3, x1, x2   -> 30
-            0x40110233,  // sub  x4, x2, x1   -> 10
-            0x04302023,  // sw   x3, 64(x0)   -> mem[0x40] = 30
-            0x04002283,  // lw   x5, 64(x0)   -> x5 = 30
+            0x002081B3,  // add  x3, x1, x2
+            0x40110233,  // sub  x4, x2, x1
+            0x04302023,  // sw   x3, 64(x0)
+            0x04002283,  // lw   x5, 64(x0)
         };
 
         u32 addr = 0;
