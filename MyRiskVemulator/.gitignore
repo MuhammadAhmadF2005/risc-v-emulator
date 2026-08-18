@@ -12,7 +12,9 @@ cmake_install.cmake
 Makefile
 compile_commands.json
 
-# test binaries
+# tests & binaries
+tests/
+__pycache__/
 *.bin
 *.elf
 
@@ -24,6 +26,3 @@ compile_commands.json
 *~
 viva.md
 processor_flow.md
-
-
-

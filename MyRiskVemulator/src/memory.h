@@ -3,6 +3,8 @@
 #include "cpu.h"
 #include <iostream>
 
+// --- Memory Helpers ---
+// Consolidate bounds checking to avoid copy-pasting it
 inline bool checkMem(const CPU &cpu, int address, int bytes)
 {
     if (address < 0 || address + bytes > (int)cpu.mem.size()) {
