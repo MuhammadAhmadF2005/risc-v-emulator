@@ -6,9 +6,11 @@
 // CPU
 struct CPU
 {
-    u32 reg[32] = {0}; // 32-bit registers
-    u32 pc = 0;        // program counter (instruction index)
-    std::vector<u8> mem;    // byte-addressable memory
+    u32 reg[32] = {0};   // 32-bit registers
+    u32 pc = 0;          // program counter (byte address)
+    std::vector<u8> mem; // byte-addressable memory
+    bool halted = false; // set true by sys_exit to stop the run loop
+    u32 heapBase = 0;    // set by loadELF to top of highest PT_LOAD segment
 };
 
 // Instructions stored as enum for encoding rather than using opcode

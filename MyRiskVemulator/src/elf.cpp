@@ -63,6 +63,8 @@ bool loadELF(CPU &cpu, const char *path) {
 
     cpu.pc = ehdr.e_entry;
 
+    u32 highestEnd = 0; // track top of all PT_LOAD segments for heapBase
+
     // Load PT_LOAD segments
     for (int i = 0; i < ehdr.e_phnum; ++i) {
         Elf32_Phdr phdr;
@@ -93,8 +95,15 @@ bool loadELF(CPU &cpu, const char *path) {
                           cpu.mem.begin() + phdr.p_vaddr + phdr.p_memsz,
                           0);
             }
+
+            u32 segEnd = phdr.p_vaddr + phdr.p_memsz;
+            if (segEnd > highestEnd) highestEnd = segEnd;
         }
     }
 
+    // Page-align heapBase to the next 4 KB boundary above all loaded segments
+    cpu.heapBase = (highestEnd + 0xFFF) & ~0xFFFu;
+
     return true;
 }
+

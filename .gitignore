@@ -1,13 +1,42 @@
+# Editors & IDEs
 .vscode/
-temp*
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts & binaries
+bin/
+obj/
+build/
 *.exe
-processor_flow.md
+*.elf
+*.bin
+*.o
+*.a
+*.out
+*.dll
+*.so
+*.dylib
+
+# Logs & temp files
+*.log
+temp*
+.default.cfg
+.savegame/
+
+# External assets & submodules
+*.wad
+*.zip
+doomgeneric/
+freedoom*/
+
+# Python / Tests
 tests/
 **/tests/
 __pycache__/
+
+# Internal docs & scratch
 viva.md
 cpu.md
-obj/
-bin/
-*.bin
-*.elf
+processor_flow.md

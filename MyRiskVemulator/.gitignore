@@ -1,24 +1,37 @@
-# build artifacts
+# Build artifacts & binaries
 build/
 *.exe
+*.elf
+*.bin
 *.o
 *.a
 *.out
+*.dll
+*.so
+*.dylib
 
-# cmake cache
+# Logs & temp files
+*.log
+.default.cfg
+.savegame/
+
+# External assets & cloned repos
+*.wad
+*.zip
+doomgeneric/
+freedoom*/
+
+# CMake cache
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-Makefile
 compile_commands.json
 
-# tests & binaries
+# Tests & caches
 tests/
 __pycache__/
-*.bin
-*.elf
 
-# editors
+# Editors & scratch
 .vscode/
 .idea/
 *.swp
