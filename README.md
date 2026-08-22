@@ -4,16 +4,16 @@ A high-performance RISC-V RV32IM emulator written from scratch in C++ capable of
 
 ## Features & Status
 
-| Component | Status |
-|---|---|
-| RV32I Base Integer ISA (40 instructions) | ✅ Complete |
-| RV32M Extension (MUL, DIV, REM) | ✅ Complete |
-| ELF32 Loader (.text, .data, .bss, multi-segment) | ✅ Complete |
-| Dynamic Heap Allocation (`sys_brk`) | ✅ Complete |
-| Host File I/O Syscalls (open, read, write, lseek, close, fstat) | ✅ Complete |
-| Custom Display & Input ECALLs (0x100–0x103) | ✅ Complete |
-| SDL2 Interactive Video (320×200 ARGB8888) & Input | ✅ Complete |
-| DOOM Execution (`doomgeneric` + `doom1.wad`) | ✅ Complete & Verified |
+| Components |
+|---|
+| RV32I Base Integer ISA (40 instructions) |
+| RV32M Extension (MUL, DIV, REM) | 
+| ELF32 Loader (.text, .data, .bss, multi-segment) | 
+| Dynamic Heap Allocation (`sys_brk`) | 
+| Host File I/O Syscalls (open, read, write, lseek, close, fstat) | 
+| Custom Display & Input ECALLs (0x100–0x103) |
+| SDL2 Interactive Video (320×200 ARGB8888) & Input |
+| DOOM Execution (`doomgeneric` + `doom1.wad`) |
 
 ## Architecture
 
@@ -113,4 +113,5 @@ Run without arguments to execute the 6-instruction demo:
 - [RISC-V ISA Specification](https://riscv.org/technical/specifications/)
 - [RISC-V Instruction Set Reference](https://msyksphinz-self.github.io/riscv-isadoc/)
 - [doomgeneric](https://github.com/ozkl/doomgeneric)
+- [rvcore](https://github.com/lalitshankarch/rvcore)
 - [Writing a RISC-V Emulator](https://book.rvemu.app/)
