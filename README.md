@@ -2,7 +2,7 @@
 
 A high-performance RISC-V RV32IM emulator written from scratch in C++ capable of running DOOM via `doomgeneric` with SDL2 graphics and keyboard input.
 
-## Features & Status
+## Features
 
 | Components |
 |---|
