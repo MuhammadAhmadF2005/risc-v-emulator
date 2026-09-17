@@ -40,3 +40,45 @@ __pycache__/
 viva.md
 cpu.md
 processor_flow.md
+# Editors & IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts & binaries
+bin/
+obj/
+build/
+*.exe
+*.elf
+*.bin
+*.o
+*.a
+*.out
+*.dll
+*.so
+*.dylib
+
+# Logs & temp files
+*.log
+temp*
+.default.cfg
+.savegame/
+
+# External assets & submodules
+*.wad
+*.zip
+doomgeneric/
+freedoom*/
+
+# Python / Tests
+tests/
+**/tests/
+__pycache__/
+
+# Internal docs & scratch
+viva.md
+cpu.md
+processor_flow.md
